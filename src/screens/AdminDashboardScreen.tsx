@@ -20,12 +20,12 @@ import {
 import { AI_ML_EVALUATION_METRICS } from '../data/mockData';
 
 const HYDERABAD_LOCATIONS = [
-  { name: 'Hyderabad Metro', scale: 1 },
-  { name: 'Gachibowli', scale: 0.24 },
-  { name: 'Madhapur', scale: 0.22 },
-  { name: 'Kukatpally', scale: 0.2 },
-  { name: 'Kondapur', scale: 0.18 },
-  { name: 'Secunderabad', scale: 0.16 }
+  { name: 'Hyderabad Metro', scale: 1, mix: { electrician: 1, plumber: 1, ac_service: 1, cleaning: 1 } },
+  { name: 'Gachibowli', scale: 0.24, mix: { electrician: 1.15, plumber: 0.9, ac_service: 1.2, cleaning: 0.9 } },
+  { name: 'Madhapur', scale: 0.22, mix: { electrician: 1.05, plumber: 0.9, ac_service: 1.15, cleaning: 1.05 } },
+  { name: 'Kukatpally', scale: 0.2, mix: { electrician: 0.95, plumber: 1.2, ac_service: 0.9, cleaning: 1.05 } },
+  { name: 'Kondapur', scale: 0.18, mix: { electrician: 1.1, plumber: 0.95, ac_service: 1.15, cleaning: 0.9 } },
+  { name: 'Secunderabad', scale: 0.16, mix: { electrician: 1.05, plumber: 1.1, ac_service: 0.9, cleaning: 1.05 } }
 ] as const;
 
 const FORECAST_SERVICES = [
@@ -99,25 +99,35 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
     );
   };
 
-  const locationScale =
-    HYDERABAD_LOCATIONS.find((location) => location.name === forecastLocation)?.scale ?? 1;
+  const location =
+    HYDERABAD_LOCATIONS.find((item) => item.name === forecastLocation) ?? HYDERABAD_LOCATIONS[0];
   const forecastData = AI_ML_EVALUATION_METRICS.demandForecasting.map((dayData) => ({
     ...dayData,
-    electrician: Math.round(dayData.electrician * locationScale),
-    plumber: Math.round(dayData.plumber * locationScale),
-    ac_service: Math.round(dayData.ac_service * locationScale),
-    cleaning: Math.round(dayData.cleaning * locationScale)
+    electrician: Math.round(dayData.electrician * location.scale * location.mix.electrician),
+    plumber: Math.round(dayData.plumber * location.scale * location.mix.plumber),
+    ac_service: Math.round(dayData.ac_service * location.scale * location.mix.ac_service),
+    cleaning: Math.round(dayData.cleaning * location.scale * location.mix.cleaning)
   }));
   const dailyTotals = forecastData.map(
     (day) => day.electrician + day.plumber + day.ac_service + day.cleaning
   );
-  const maxDailyTotal = Math.max(...dailyTotals, 1);
-  const maxServiceDemand = Math.max(
-    ...forecastData.flatMap((day) =>
-      FORECAST_SERVICES.map(({ key }) => day[key])
-    ),
-    1
+  const weeklyServiceTotals = FORECAST_SERVICES.map(({ key }) => ({
+    key,
+    total: forecastData.reduce((sum, day) => sum + day[key], 0)
+  }));
+  const weeklyTotal = weeklyServiceTotals.reduce((sum, service) => sum + service.total, 0);
+  const weeklyShares = Object.fromEntries(
+    weeklyServiceTotals.map(({ key, total }) => [key, weeklyTotal ? (total / weeklyTotal) * 100 : 0])
+  ) as Record<(typeof FORECAST_SERVICES)[number]['key'], number>;
+  const dailyShares = forecastData.map((day, index) =>
+    Object.fromEntries(
+      FORECAST_SERVICES.map(({ key }) => [
+        key,
+        dailyTotals[index] ? (day[key] / dailyTotals[index]) * 100 : 0
+      ])
+    ) as Record<(typeof FORECAST_SERVICES)[number]['key'], number>
   );
+  const maxShare = Math.max(...dailyShares.flatMap((day) => FORECAST_SERVICES.map(({ key }) => day[key])), 1);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20 font-sans">
@@ -294,8 +304,39 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                   ))}
                 </div>
                 <span className="text-xs font-semibold text-slate-500">
-                  {forecastLocation} · forecast jobs per day
+                  {forecastLocation} · weekly demand share by service
                 </span>
+              </div>
+
+              <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h4 className="text-sm font-extrabold text-slate-800">Overall weekly demand share</h4>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-slate-600 ring-1 ring-slate-200">
+                    100% total · {weeklyTotal.toLocaleString()} forecast jobs
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  {FORECAST_SERVICES.map(({ key, label, className }) => (
+                    <div key={key} className="rounded-xl border border-slate-200 bg-white p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-slate-600">{label}</span>
+                        <span className="text-sm font-black text-slate-900">
+                          {weeklyShares[key].toFixed(1)}%
+                        </span>
+                      </div>
+                      <div
+                        className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100"
+                        role="img"
+                        aria-label={`${label}: ${weeklyShares[key].toFixed(1)} percent of weekly demand`}
+                      >
+                        <div
+                          className={`h-full rounded-full ${className}`}
+                          style={{ width: `${weeklyShares[key]}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {forecastFormat === 'bars' && (
@@ -308,16 +349,16 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                           <div
                             key={key}
                             style={{
-                              width: `${(dayData[key] / maxDailyTotal) * 100}%`,
+                              width: `${dailyShares[index][key]}%`,
                               animationDelay: `${index * 45}ms`
                             }}
                             className={`${className} animate-forecast-bar rounded-sm`}
-                            title={`${label}: ${dayData[key]}`}
+                            title={`${label}: ${dailyShares[index][key].toFixed(1)}% (${dayData[key]} jobs)`}
                           />
                         ))}
                       </div>
-                      <span className="w-12 text-right font-mono font-bold text-slate-900">
-                        {dailyTotals[index]}
+                      <span className="w-14 text-right font-mono font-bold text-slate-900">
+                        100%
                       </span>
                     </div>
                   ))}
@@ -329,7 +370,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                   <svg
                     viewBox="0 0 720 250"
                     role="img"
-                    aria-label={`Weekly service demand line chart for ${forecastLocation}`}
+                    aria-label={`Weekly service demand share percentage line chart for ${forecastLocation}`}
                     className="min-w-[560px] w-full"
                   >
                     {[0, 1, 2, 3].map((tick) => {
@@ -338,7 +379,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                         <g key={tick}>
                           <line x1="44" x2="700" y1={y} y2={y} stroke="#e2e8f0" strokeDasharray="4 5" />
                           <text x="34" y={y + 4} textAnchor="end" fill="#64748b" fontSize="10">
-                            {Math.round((maxServiceDemand * tick) / 3)}
+                            {((maxShare * tick) / 3).toFixed(0)}%
                           </text>
                         </g>
                       );
@@ -347,7 +388,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                       const points = forecastData
                         .map((day, index) => {
                           const x = 52 + (index / (forecastData.length - 1)) * 638;
-                          const y = 202 - (day[key] / maxServiceDemand) * 168;
+                          const y = 202 - (dailyShares[index][key] / maxShare) * 168;
                           return `${x},${y}`;
                         })
                         .join(' ');
@@ -363,8 +404,12 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                           />
                           {forecastData.map((day, index) => {
                             const x = 52 + (index / (forecastData.length - 1)) * 638;
-                            const y = 202 - (day[key] / maxServiceDemand) * 168;
-                            return <circle key={day.day} cx={x} cy={y} r="3.5" fill={color} />;
+                            const y = 202 - (dailyShares[index][key] / maxShare) * 168;
+                            return                             <circle key={day.day} cx={x} cy={y} r="3.5" fill={color}>
+                              <title>
+                                {day.day}: {label} {dailyShares[index][key].toFixed(1)}%
+                              </title>
+                            </circle>;
                           })}
                         </g>
                       );
@@ -394,7 +439,7 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                         <th scope="col" className="px-3 py-3 font-bold">Day</th>
                         {FORECAST_SERVICES.map(({ key, label }) => (
                           <th key={key} scope="col" className="px-3 py-3 text-right font-bold">
-                            {label}
+                            {label} (%)
                           </th>
                         ))}
                         <th scope="col" className="px-3 py-3 text-right font-bold">Total</th>
@@ -406,15 +451,30 @@ export const AdminDashboardScreen: React.FC<AdminDashboardScreenProps> = ({
                           <th scope="row" className="px-3 py-3 font-bold text-slate-800">{day.day}</th>
                           {FORECAST_SERVICES.map(({ key }) => (
                             <td key={key} className="px-3 py-3 text-right font-mono text-slate-700">
-                              {day[key]}
+                              {dailyShares[index][key].toFixed(1)}%
                             </td>
                           ))}
                           <td className="px-3 py-3 text-right font-mono font-bold text-slate-900">
-                            {dailyTotals[index]}
+                            100%
                           </td>
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-slate-200 bg-slate-50">
+                        <th scope="row" className="px-3 py-3 font-extrabold text-slate-800">
+                          Week overall
+                        </th>
+                        {FORECAST_SERVICES.map(({ key }) => (
+                          <td key={key} className="px-3 py-3 text-right font-mono font-bold text-slate-800">
+                            {weeklyShares[key].toFixed(1)}%
+                          </td>
+                        ))}
+                        <td className="px-3 py-3 text-right font-mono font-black text-slate-900">
+                          100%
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               )}
