@@ -38,7 +38,7 @@
 - **Admin Dashboard**:
   - Platform totals start at zero until connected to live account and transaction data.
   - Explore sample weekly service forecasts for Hyderabad Metro, Gachibowli, Madhapur, Kukatpally, Kondapur, and Secunderabad as stacked bars, a line chart, or a table.
-  - Admin access generates a one-time demo password in the browser. This demo gate is not a substitute for server-side authentication.
+  - Admin access uses a demo password check in the browser. This demo gate is not a substitute for server-side authentication.
 
 ---
 

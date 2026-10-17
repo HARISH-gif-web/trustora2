@@ -1,36 +1,26 @@
 import React, { useState } from 'react';
-import { ArrowLeft, KeyRound, LockKeyhole, RefreshCw, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, LockKeyhole, ShieldCheck } from 'lucide-react';
 
 interface AdminAccessScreenProps {
   onBack: () => void;
   onSuccess: () => void;
 }
 
-const generateAdminPassword = () => {
-  const bytes = crypto.getRandomValues(new Uint8Array(10));
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
-};
+const ADMIN_PASSWORD = 'admin@123';
 
 export const AdminAccessScreen: React.FC<AdminAccessScreenProps> = ({ onBack, onSuccess }) => {
-  const [generatedPassword, setGeneratedPassword] = useState(generateAdminPassword);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (password !== generatedPassword) {
-      setError('That password does not match. Try again or generate a new password.');
+    if (password !== ADMIN_PASSWORD) {
+      setError('Incorrect password. Please try again.');
       return;
     }
 
     setError('');
     onSuccess();
-  };
-
-  const handleRegenerate = () => {
-    setGeneratedPassword(generateAdminPassword());
-    setPassword('');
-    setError('');
   };
 
   return (
@@ -50,30 +40,12 @@ export const AdminAccessScreen: React.FC<AdminAccessScreenProps> = ({ onBack, on
         </div>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">Admin access</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          A one-time demo password has been generated for this visit. Enter it below to continue.
+          Enter the admin password to continue to the dashboard.
         </p>
 
-        <div className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-4">
-          <div className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-purple-800">
-            <KeyRound className="h-4 w-4" />
-            Generated demo password
-          </div>
-          <code className="block break-all rounded-xl bg-white px-3 py-3 text-sm font-bold tracking-wider text-slate-900">
-            {generatedPassword}
-          </code>
-          <button
-            type="button"
-            onClick={handleRegenerate}
-            className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-purple-800 transition hover:text-purple-950"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Generate a new password
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label htmlFor="admin-password" className="block text-sm font-bold text-slate-800">
-            Enter the generated password
+            Admin password
           </label>
           <input
             id="admin-password"
@@ -85,7 +57,7 @@ export const AdminAccessScreen: React.FC<AdminAccessScreenProps> = ({ onBack, on
               setError('');
             }}
             className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
-            placeholder="Enter the password shown above"
+            placeholder="Enter admin password"
             required
           />
           {error && (
