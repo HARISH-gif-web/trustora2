@@ -1,0 +1,6 @@
+{
+  "name": "Trustora AI",
+  "description": "AI-Powered Local Services Marketplace. Trusted Help. Right Around You.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
