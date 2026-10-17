@@ -184,6 +184,7 @@ export default function App() {
         {/* Screen 3: Sign Up / Login */}
         {currentScreen === 'auth' && (
           <AuthScreen
+            key={user.role}
             initialRole={user.role}
             onSuccess={(loggedInUser) => {
               if (loggedInUser.role === 'admin') {
@@ -192,11 +193,7 @@ export default function App() {
               }
 
               setUser(loggedInUser);
-              setCurrentScreen(
-                loggedInUser.role === 'provider'
-                  ? 'home_provider'
-                  : 'home_seeker'
-              );
+              setCurrentScreen(loggedInUser.role === 'provider' ? 'home_provider' : 'home_seeker');
             }}
             onBackToRoles={() => setCurrentScreen('role_select')}
           />
